@@ -5,7 +5,7 @@
     uv run --with matplotlib python -m cs336_basics.model.plot_curves runs/lr* \
         --label_keys max_learning_rate --out figures/lr_sweep.png
 
-    # 同时画训练 loss（淡色细线）
+    # 同时画训练 loss(淡色细线)
     uv run --with matplotlib python -m cs336_basics.model.plot_curves runs/bs* \
         --label_keys batch_size --train --out figures/batch_size.png
 
@@ -38,8 +38,8 @@ def is_bad(x):
 
 def stability(train, val):
     """返回 "diverged" / "unstable" / ""。
-    diverged：loss 出现 NaN/inf，或最后的验证 loss 比初始值还高；
-    unstable：中途验证 loss 冲到初始值的 1.1 倍以上，但后来又降回来了。"""
+    diverged:loss 出现 NaN/inf,或最后的验证 loss 比初始值还高；
+    unstable:中途验证 loss 冲到初始值的 1.1 倍以上，但后来又降回来了。"""
     losses = [r["train_loss"] for r in train] + [r["val_loss"] for r in val]
     if any(is_bad(x) for x in losses):
         return "diverged"

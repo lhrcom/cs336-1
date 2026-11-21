@@ -62,6 +62,7 @@ def train(cfg: Config):
 
     torch.manual_seed(cfg.seed)
     rng = np.random.default_rng(cfg.seed)
+    # TF32
     torch.set_float32_matmul_precision('high')
     model = build_model(cfg, device).to(device)   # 注意力层建在 CPU 上，统一搬到 device
     optimizer = AdamW(model.parameters(), lr=cfg.lr, betas=(cfg.beta1, cfg.beta2), weight_decay=cfg.weight_decay)
@@ -107,9 +108,11 @@ def train(cfg: Config):
     # 吞吐量统计区间
     interval_start = time.perf_counter()
     steps_in_interval = 0
+    
+    x, y = data_loading(train_data, cfg.batch_size, cfg.context_length, device, rng=rng)
 
     for step in range(start_step, cfg.max_iters):
-        x, y = data_loading(train_data, cfg.batch_size, cfg.context_length, device, rng=rng)
+        # x, y = data_loading(train_data, cfg.batch_size, cfg.context_length, device, rng=rng)
         lr = learning_rate_schedule(step, cfg.max_learning_rate, cfg.min_learning_rate, cfg.warmup_iters, cfg.max_iters)
         for group in optimizer.param_groups:
             group["lr"] = lr

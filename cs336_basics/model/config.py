@@ -30,8 +30,11 @@ class Config:
     num_heads: int = 16         
     d_ff: int = 1344
     theta: float = 10000.0
-    max_iters: int = 10000
-    batch_size: int = 128
+    # max_iters: int = 10000
+    max_iters: int = 1000
+    # batch_size: int = 128
+    batch_size: int = 32
+    
     max_l2_norm: float = 1.0
     lr: float = 3e-4
     beta1: float = 0.9
@@ -42,7 +45,8 @@ class Config:
     # lr schedule
     max_learning_rate: float = 3e-4
     min_learning_rate: float = 3e-5
-    warmup_iters: int = 1000
+    # warmup_iters: int = 1000
+    warmup_iters: int = 10
 
     # eval
     log_interval: int = 100

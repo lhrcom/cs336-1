@@ -161,3 +161,10 @@ cython_debug/
 
 .ruff_cache/
 *.zip
+
+
+data/
+.DS_Store
+cs336_basics/checkpoint/
+*.pt
+!tests/fixtures/**/*.pt

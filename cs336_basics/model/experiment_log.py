@@ -26,6 +26,15 @@ class ExperimentLogger:
 
         print(f"run: {run_name}  ->  {self.run_dir}")
 
+    def truncate_from(self, step: int):
+        """续训时调用：删掉 step >= 该值的记录（这些是上次中断前、最后一个 checkpoint 之后的步，会重新跑一遍）。"""
+        self.metrics_file.close()
+        path = self.run_dir / "metrics.jsonl"
+        kept = [line for line in path.read_text().splitlines()
+                if line.strip() and json.loads(line).get("step", -1) < step]
+        path.write_text("".join(line + "\n" for line in kept))
+        self.metrics_file = open(path, "a")
+
     def log(self, record: dict):
         # 终端
         parts = []

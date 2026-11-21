@@ -54,6 +54,9 @@ class Config:
     run_name: str = ""           # 留空则自动生成，如 lr0.0003_bs64_ctx256_1121-153000
     out_dir: str = "runs"        # 每个 run 的 config.json / metrics.jsonl 存在 out_dir/run_name/
 
+    # 续训：--resume 1 且 checkpoint 存在时，从中断处接着训练（需配合 --run_name，或 --ckpt_path）
+    resume: int = 0
+
 def parse_args() -> Config:
     parser = argparse.ArgumentParser()
     for f in fields(Config):

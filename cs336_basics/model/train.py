@@ -1,4 +1,5 @@
 import math
+import os
 import time
 from pathlib import Path
 
@@ -61,15 +62,34 @@ def train(cfg: Config):
 
     torch.manual_seed(cfg.seed)
     rng = np.random.default_rng(cfg.seed)
-
+    torch.set_float32_matmul_precision('high')
     model = build_model(cfg, device).to(device)   # 注意力层建在 CPU 上，统一搬到 device
     optimizer = AdamW(model.parameters(), lr=cfg.lr, betas=(cfg.beta1, cfg.beta2), weight_decay=cfg.weight_decay)
 
+    if cfg.resume and not cfg.run_name:
+        raise ValueError("--resume 1 需要同时指定 --run_name(要续训哪个 run),否则会新建一个 run 目录")
     run_name = cfg.run_name or make_run_name(cfg)
     logger = ExperimentLogger(cfg, run_name)
     ckpt_path = cfg.ckpt_path or str(logger.run_dir / "model.pt")
     Path(ckpt_path).parent.mkdir(parents=True, exist_ok=True)
     ckpt = checkpointing()
+
+    # 续训：恢复模型、优化器、随机数状态和已用训练时间
+    start_step = 0
+    elapsed_offset = 0.0
+    if cfg.resume and Path(ckpt_path).exists():
+        start_step, extra = ckpt.load_checkpoint(ckpt_path, model, optimizer, map_location=device, return_extra=True)
+        if "np_rng" in extra:
+            rng.bit_generator.state = extra["np_rng"]
+        if "torch_rng" in extra:
+            torch.set_rng_state(extra["torch_rng"].cpu())
+        if "cuda_rng" in extra and torch.cuda.is_available():
+            torch.cuda.set_rng_state_all([s.cpu() for s in extra["cuda_rng"]])
+        elapsed_offset = extra.get("train_elapsed", 0.0)
+        logger.truncate_from(start_step)    # 去掉最后一个 checkpoint 之后的旧记录，避免重复
+        print(f"resumed from {ckpt_path} at step {start_step}")
+    elif cfg.resume:
+        print(f"no checkpoint at {ckpt_path}, training from scratch")
 
     # 固定的评估窗口：训练开始前算一次，之后每次评估都用同一批数据
     subset_starts = make_eval_starts(len(val_data), cfg.context_length, cfg.eval_windows)
@@ -82,13 +102,13 @@ def train(cfg: Config):
     eval_time_total = 0.0
 
     def train_elapsed():
-        return time.perf_counter() - start_time - eval_time_total
+        return elapsed_offset + time.perf_counter() - start_time - eval_time_total
 
     # 吞吐量统计区间
     interval_start = time.perf_counter()
     steps_in_interval = 0
 
-    for step in range(cfg.max_iters):
+    for step in range(start_step, cfg.max_iters):
         x, y = data_loading(train_data, cfg.batch_size, cfg.context_length, device, rng=rng)
         lr = learning_rate_schedule(step, cfg.max_learning_rate, cfg.min_learning_rate, cfg.warmup_iters, cfg.max_iters)
         for group in optimizer.param_groups:
@@ -139,7 +159,18 @@ def train(cfg: Config):
             steps_in_interval = 0
 
         if (step + 1) % cfg.eval_interval == 0 or step == cfg.max_iters - 1:
-            ckpt.save_checkpoint(model, optimizer, step, ckpt_path)
+            extra = {
+                "np_rng": rng.bit_generator.state,
+                "torch_rng": torch.get_rng_state(),
+                "train_elapsed": train_elapsed(),
+            }
+            if torch.cuda.is_available():
+                extra["cuda_rng"] = torch.cuda.get_rng_state_all()
+            # iteration 存“已完成的步数”= step+1，续训从这一步开始
+            # 先写临时文件再改名：保存到一半被打断时，旧的 checkpoint 不会损坏
+            tmp_path = ckpt_path + ".tmp"
+            ckpt.save_checkpoint(model, optimizer, step + 1, tmp_path, extra=extra)
+            os.replace(tmp_path, ckpt_path)
 
     # 最终评估：完整验证集（报告里用这个数）
     final_val_loss = evaluate_loss(model, val_data, full_starts, cfg.context_length, cfg.eval_batch_size, device)

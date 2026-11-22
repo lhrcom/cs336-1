@@ -16,6 +16,8 @@ import json
 import math
 from pathlib import Path
 
+from cs336_basics.paths import FIGURES_DIR
+
 X_LABELS = {
     "step": "gradient steps",
     "wallclock": "wall-clock time (min)",
@@ -85,7 +87,7 @@ def main():
     parser.add_argument("--ymin", type=float, default=None)
     parser.add_argument("--ymax", type=float, default=None, help="默认取各 run 初始验证 loss 的最大值，发散的曲线会冲出图外")
     parser.add_argument("--title", default="")
-    parser.add_argument("--out", default="figures/loss_curves.png")
+    parser.add_argument("--out", default=str(FIGURES_DIR / "loss_curves.png"))
     args = parser.parse_args()
 
     import matplotlib

@@ -1,12 +1,27 @@
+import json
+from dataclasses import fields
+from pathlib import Path
+
 import torch
 from cs336_basics.model.config import Config, build_model, get_device
 from cs336_basics.tokenization import Tokenizer
 from cs336_basics.model.model_component import softmax
 
+def load_config(ckpt, ckpt_path) -> Config:
+    """优先用 checkpoint 里存的 config；旧 checkpoint 没存时，退回到同目录下 ExperimentLogger 写的 config.json。"""
+    cfg_dict = ckpt.get("extra", {}).get("config")
+    if cfg_dict is None:
+        cfg_file = Path(ckpt_path).parent / "config.json"
+        if not cfg_file.exists():
+            raise FileNotFoundError(f"checkpoint 里没有 config，且找不到 {cfg_file}")
+        cfg_dict = json.loads(cfg_file.read_text())
+    known = {f.name for f in fields(Config)}
+    return Config(**{k: v for k, v in cfg_dict.items() if k in known})   # 忽略已删除的旧字段
+
 def load_model(ckpt_path, device):
     ckpt = torch.load(ckpt_path, map_location=device)
-    cfg = Config(**ckpt["config"])     
-    model = build_model(cfg, device)   
+    cfg = load_config(ckpt, ckpt_path)
+    model = build_model(cfg, device).to(device)   # 和 train.py 一样：部分层建在 CPU 上，统一搬到 device
     model.load_state_dict(ckpt["model"])
     model.eval()
     return model, cfg
@@ -55,13 +70,27 @@ def generate(model, tokenizer, prompt, max_new_tokens, context_length, temperatu
     return tokenizer.decode(ids)
 
 if __name__ == "__main__":
+    import argparse
+    from cs336_basics.paths import DATA_DIR, RUNS_DIR, require, resolve_input
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--ckpt", required=True, help="checkpoint 路径，如 runs/<run_name>/model.pt 或 <run_name>/model.pt")
+    parser.add_argument("--bpe_dir", default=str(DATA_DIR / "tinystories_bpe"), help="包含 vocab.json / merges.txt 的目录")
+    parser.add_argument("--prompt", default="Once upon a time")
+    parser.add_argument("--max_new_tokens", type=int, default=256)
+    parser.add_argument("--temperature", type=float, default=0.8)
+    parser.add_argument("--top_p", type=float, default=0.9)
+    args = parser.parse_args()
+
+    ckpt_path = require(resolve_input(args.ckpt, RUNS_DIR))
+    bpe_dir = resolve_input(args.bpe_dir)
     device = get_device()
-    model, cfg = load_model("checkpoint/model.pt", device)
+    model, cfg = load_model(ckpt_path, device)
     tokenizer = Tokenizer.from_files(
-        "data/tinystories_bpe/vocab.json",
-        "data/tinystories_bpe/merges.txt",
+        require(bpe_dir / "vocab.json"),
+        require(bpe_dir / "merges.txt"),
         special_tokens=["<|endoftext|>"],
     )
-    print(generate(model, tokenizer, "Once upon a time",
-                   max_new_tokens=256, context_length=cfg.context_length,
-                   temperature=0.8, top_p=0.9))
+    print(generate(model, tokenizer, args.prompt,
+                   max_new_tokens=args.max_new_tokens, context_length=cfg.context_length,
+                   temperature=args.temperature, top_p=args.top_p))

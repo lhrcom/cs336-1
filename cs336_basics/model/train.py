@@ -1,6 +1,7 @@
 import math
 import os
 import time
+from dataclasses import asdict
 from pathlib import Path
 
 import numpy as np
@@ -14,6 +15,7 @@ from cs336_basics.model.loaddata import data_loading
 from cs336_basics.model.checkpoint import checkpointing
 from cs336_basics.model.lr_schedule import learning_rate_schedule
 from cs336_basics.model.experiment_log import ExperimentLogger, make_run_name
+from cs336_basics.paths import require
 
 
 def compute_grad_norm(model, device):
@@ -57,8 +59,9 @@ def evaluate_loss(model, val_data, starts, context_length, batch_size, device):
 def train(cfg: Config):
     device = get_device()
 
-    train_data = np.load(cfg.train_path, mmap_mode="r")
-    val_data = np.load(cfg.val_path, mmap_mode="r")
+    print(f"train_path: {cfg.train_path}\nval_path:   {cfg.val_path}")
+    train_data = np.load(require(cfg.train_path), mmap_mode="r")
+    val_data = np.load(require(cfg.val_path), mmap_mode="r")
 
     torch.manual_seed(cfg.seed)
     rng = np.random.default_rng(cfg.seed)
@@ -166,6 +169,7 @@ def train(cfg: Config):
                 "np_rng": rng.bit_generator.state,
                 "torch_rng": torch.get_rng_state(),
                 "train_elapsed": train_elapsed(),
+                "config": asdict(cfg),      # decode.py 靠它重建同样结构的模型
             }
             if torch.cuda.is_available():
                 extra["cuda_rng"] = torch.cuda.get_rng_state_all()

@@ -3,6 +3,7 @@ from dataclasses import dataclass, fields
 import torch
 from torch.profiler import schedule
 from cs336_basics.model.model_component import transformer_lm
+from cs336_basics.paths import DATA_DIR, PROJECT_ROOT, RUNS_DIR, resolve_input, resolve_output
 
 
 def get_device(prefer: str = "auto") -> torch.device:
@@ -18,8 +19,9 @@ def get_device(prefer: str = "auto") -> torch.device:
 @dataclass
 class Config:
  
-    train_path: str = "data/data_npy/tinystories_train.npy"
-    val_path: str = "data/data_npy/tinystories_valid.npy"
+    # 相对路径会依次在 CWD、DATA_DIR、项目根目录下查找（见 cs336_basics/paths.py）
+    train_path: str = str(DATA_DIR / "data_npy/tinystories_train.npy")
+    val_path: str = str(DATA_DIR / "data_npy/tinystories_valid.npy")
 
     seed: int = 337
 
@@ -56,7 +58,7 @@ class Config:
 
     # 日志
     run_name: str = ""           # 留空则自动生成，如 lr0.0003_bs64_ctx256_1121-153000
-    out_dir: str = "runs"        # 每个 run 的 config.json / metrics.jsonl 存在 out_dir/run_name/
+    out_dir: str = str(RUNS_DIR)  # 每个 run 的 config.json / metrics.jsonl 存在 out_dir/run_name/；相对路径基于项目根目录
 
     # 续训：--resume 1 且 checkpoint 存在时，从中断处接着训练（需配合 --run_name，或 --ckpt_path）
     resume: int = 0
@@ -66,7 +68,14 @@ def parse_args() -> Config:
     for f in fields(Config):
         arg_type = f.type if f.type in (int, float, str) else str
         parser.add_argument(f"--{f.name}", type=arg_type, default=f.default)
-    return Config(**vars(parser.parse_args()))
+    cfg = Config(**vars(parser.parse_args()))
+    # 统一解析成绝对路径，之后无论在哪个目录启动都指向同一位置
+    cfg.train_path = str(resolve_input(cfg.train_path))
+    cfg.val_path = str(resolve_input(cfg.val_path))
+    cfg.out_dir = str(resolve_output(cfg.out_dir))
+    if cfg.ckpt_path:
+        cfg.ckpt_path = str(resolve_input(cfg.ckpt_path, PROJECT_ROOT))  # 已存在则沿用，否则放在项目根目录下
+    return cfg
 
 
 def build_model(cfg: Config, device) -> transformer_lm:

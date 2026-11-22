@@ -1,16 +1,17 @@
 import random
 import time 
+from cs336_basics.paths import DATA_DIR
 from cs336_basics.tokenization import Tokenizer
 
 tok = Tokenizer.from_files(
-        "/Users/micheal/Local_Doc/Myawesome-zero_to_hero/cs336/assignment1-basics/data/tinystories_bpe/vocab.json",
-        "/Users/micheal/Local_Doc/Myawesome-zero_to_hero/cs336/assignment1-basics/data/tinystories_bpe/merges.txt",
+        DATA_DIR / "tinystories_bpe/vocab.json",
+        DATA_DIR / "tinystories_bpe/merges.txt",
         special_tokens=["<|endoftext|>"]
     )
 
 def compression_ratio():
     random.seed(42)
-    path = "/Users/micheal/Local_Doc/Myawesome-zero_to_hero/cs336/assignment1-basics/data/owt_train.txt"
+    path = DATA_DIR / "owt_train.txt"
     
     with open(path, "r", encoding="utf-8") as f:
         text = f.read()
@@ -37,5 +38,5 @@ def tokenizer_throughput(path):
     
 
 if __name__ == "__main__":
-    path = "/Users/micheal/Local_Doc/Myawesome-zero_to_hero/cs336/assignment1-basics/data/TinyStoriesV2-GPT4-train.txt"
+    path = DATA_DIR / "TinyStoriesV2-GPT4-train.txt"
     tokenizer_throughput(path)

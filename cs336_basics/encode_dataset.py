@@ -1,8 +1,8 @@
 from cs336_basics.tokenization import Tokenizer
 import numpy as np
-from pathlib import Path
-base = Path(__file__).parent.parent
-data_base_path = base / "data"
+from cs336_basics.paths import DATA_DIR, require
+data_base_path = DATA_DIR
+npy_dir = DATA_DIR / "data_npy"   # 与 config.py 的默认 train_path / val_path 一致
 path_1 = data_base_path / "owt_train.txt"
 path_2 = data_base_path / "owt_valid.txt"
 path_3 = data_base_path / "TinyStoriesV2-GPT4-train.txt"
@@ -22,6 +22,10 @@ def encode_training_vaild():
                 special_tokens=["<|endoftext|>"]
         )
     
+    for p in (path_1, path_2, path_3, path_4):
+        require(p)
+    npy_dir.mkdir(parents=True, exist_ok=True)
+
     with open(path_1, "r", encoding="utf-8") as f:
             text_1 = f.read()
     with open(path_2, "r", encoding="utf-8") as f:
@@ -41,10 +45,10 @@ def encode_training_vaild():
     arr_3 = np.array(ids_3, dtype=np.uint16)
     arr_4 = np.array(ids_4, dtype=np.uint16)
 
-    np.save(data_base_path / "tinystories_train.npy", arr_1)
-    np.save(data_base_path / "tinystories_valid.npy", arr_2)
-    np.save(data_base_path / "owt_train.npy", arr_3)
-    np.save(data_base_path / "owt_valid.npy", arr_4)
+    np.save(npy_dir / "tinystories_train.npy", arr_1)
+    np.save(npy_dir / "tinystories_valid.npy", arr_2)
+    np.save(npy_dir / "owt_train.npy", arr_3)
+    np.save(npy_dir / "owt_valid.npy", arr_4)
 
 if __name__ == "__main__":
     encode_training_vaild()

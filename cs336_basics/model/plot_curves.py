@@ -1,4 +1,4 @@
-"""读取 runs/<run_name>/metrics.jsonl，把多次 run 的 loss 曲线画在同一张图上，并打印汇总表。
+"""读取 runs/<run_name>/metrics.jsonl,把多次 run 的 loss 曲线画在同一张图上，并打印汇总表。
 
 用法示例：
     # 对比所有学习率实验，图例显示学习率

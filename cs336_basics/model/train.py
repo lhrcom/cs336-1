@@ -112,10 +112,10 @@ def train(cfg: Config):
     interval_start = time.perf_counter()
     steps_in_interval = 0
     
-    x, y = data_loading(train_data, cfg.batch_size, cfg.context_length, device, rng=rng)
+    # x, y = data_loading(train_data, cfg.batch_size, cfg.context_length, device, rng=rng)
 
     for step in range(start_step, cfg.max_iters):
-        # x, y = data_loading(train_data, cfg.batch_size, cfg.context_length, device, rng=rng)
+        x, y = data_loading(train_data, cfg.batch_size, cfg.context_length, device, rng=rng)
         lr = learning_rate_schedule(step, cfg.max_learning_rate, cfg.min_learning_rate, cfg.warmup_iters, cfg.max_iters)
         for group in optimizer.param_groups:
             group["lr"] = lr
